@@ -12,6 +12,7 @@ services:
       - ./firmware:/work/firmware
       - idf_cache:/root/.espressif
     command: bash
-
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
 volumes:
   idf_cache:
