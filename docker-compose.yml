@@ -1,0 +1,17 @@
+services:
+  esp8266-build:
+    hostname: esp8266-build
+    platform: linux/amd64
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.esp8266-rtos
+    working_dir: /work/firmware
+    environment:
+      - IDF_PATH=/opt/esp/ESP8266_RTOS_SDK
+    volumes:
+      - ./firmware:/work/firmware
+      - idf_cache:/root/.espressif
+    command: bash
+
+volumes:
+  idf_cache:

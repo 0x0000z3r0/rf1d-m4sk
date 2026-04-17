@@ -1,0 +1,7 @@
+build/
+*.log
+*.tmp
+.DS_Store
+.vscode/
+firmware/build/
+firmware/sdkconfig

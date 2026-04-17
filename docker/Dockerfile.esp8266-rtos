@@ -1,0 +1,52 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ESP_PATH=/opt/esp
+ENV IDF_PATH=${ESP_PATH}/ESP8266_RTOS_SDK
+ENV TOOLCHAIN_DIR=${ESP_PATH}/xtensa-lx106-elf
+
+RUN apt-get update && apt-get install -y \
+    bison \
+    build-essential \
+    flex \
+    gcc \
+    gperf \
+    git \
+    libncurses5-dev \
+    make \
+    python3 \
+    python3-pip \
+    python3-serial \
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
+
+RUN mkdir -p ${ESP_PATH}
+
+WORKDIR ${ESP_PATH}
+
+RUN wget --no-check-certificate https://dl.espressif.com/dl/xtensa-lx106-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz \
+    && tar -xzf xtensa-lx106-*.tar.gz \
+    && rm xtensa-lx106-*.tar.gz
+
+RUN git config --global http."https://jihulab.com/".sslVerify false \
+    && git clone --branch release/v3.4 https://github.com/espressif/ESP8266_RTOS_SDK.git ${IDF_PATH} \
+    && cd ${IDF_PATH} \
+    && git submodule sync --recursive \
+    && git submodule update --init --recursive
+
+RUN python3 -m pip install --no-cache-dir \
+    --trusted-host pypi.org \
+    --trusted-host files.pythonhosted.org \
+    --trusted-host pypi.python.org \
+    -r ${IDF_PATH}/requirements.txt
+
+ENV PATH="${TOOLCHAIN_DIR}/bin:${IDF_PATH}/tools:${PATH}"
+
+WORKDIR /work
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
