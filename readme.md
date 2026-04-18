@@ -1,5 +1,7 @@
 # rf1d-m4sk
 
+<img src="media/logo.png" width="250"/>
+
 RFID reader and writer
 
 ## Layout
@@ -26,3 +28,7 @@ docker compose run --rm esp8266-build make flash monitor
 ```
 
 Adjust the serial port name to your board.
+
+## Demo
+
+<img src="media/demo.jpg" width="250"/>

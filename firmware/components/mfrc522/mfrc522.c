@@ -11,8 +11,6 @@
 
 static const char *TAG = "mfrc522";
 
-// Software SPI on conflict-free GPIOs (HSPI GPIO12/GPIO14 are shared with
-// onboard OLED).
 #define MFRC522_PIN_SCK 5   // D1
 #define MFRC522_PIN_MISO 4  // D2
 #define MFRC522_PIN_MOSI 13 // D7
@@ -224,7 +222,6 @@ static int mfrc522_anticoll(uint8_t *ser_num) {
 }
 
 esp_err_t mfrc522_init(void) {
-  // Configure output pins: SCK, MOSI, CS, RST
   gpio_config_t out_conf = {
       .intr_type = GPIO_INTR_DISABLE,
       .mode = GPIO_MODE_OUTPUT,
@@ -238,7 +235,6 @@ esp_err_t mfrc522_init(void) {
     return err;
   }
 
-  // Configure input pin: MISO
   gpio_config_t in_conf = {
       .intr_type = GPIO_INTR_DISABLE,
       .mode = GPIO_MODE_INPUT,
