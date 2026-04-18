@@ -12,22 +12,22 @@
 static const char *TAG = "main";
 
 void app_main(void) {
-  ESP_LOGI(TAG, "Booting OLED-first firmware");
+  ESP_LOGI(TAG, "Booting the firmware");
   if (oled_init() != ESP_OK) {
     ESP_LOGE(TAG, "OLED init failed");
   } else {
     ESP_LOGI(TAG, "OLED init done");
     oled_clear();
-    oled_write_line(0, "RF1D M4SK");
-    oled_write_line(2, "OLED READY");
+    oled_write_line(0, "  *** RF1D M4SK ***");
   }
 
+  oled_write_line(2, "rfid setup");
   if (mfrc522_init() != ESP_OK) {
     ESP_LOGE(TAG, "MFRC522 init failed");
-    oled_write_line(3, "RFID INIT FAIL");
+    oled_write_line(3, "rfid failed");
   } else {
     ESP_LOGI(TAG, "RFID reader ready");
-    oled_write_line(3, "RFID READY");
+    oled_write_line(3, "rfid ready");
   }
 
   uint32_t tick = 0;
@@ -52,11 +52,11 @@ void app_main(void) {
         oled_write_line(4, uid_line);
         ESP_LOGI(TAG, "RFID %s", uid_line);
       }
-    }
 
-    snprintf(line, sizeof(line), "UP %lu", (unsigned long)tick++);
-    oled_write_line(5, line);
-    ESP_LOGI(TAG, "heartbeat=%lu", (unsigned long)(tick - 1));
-    vTaskDelay(pdMS_TO_TICKS(250));
+      snprintf(line, sizeof(line), "UP %lu", (unsigned long)tick++);
+      oled_write_line(5, line);
+      ESP_LOGI(TAG, "heartbeat=%lu", (unsigned long)(tick - 1));
+      vTaskDelay(pdMS_TO_TICKS(250));
+    }
   }
 }

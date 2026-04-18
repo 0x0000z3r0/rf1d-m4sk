@@ -1,4 +1,4 @@
-# Wiring (OLED + MFRC522)
+# Wiring
 
 ## Board profile
 
@@ -32,20 +32,20 @@ Keep UART pins free for logging while bringing up display:
 
 ## MFRC522
 
-MFRC522 is connected via the ESP8266 RTOS SDK SPI driver (`driver/spi.h`) on HSPI host.
+MFRC522 is connected via software (bit-bang) SPI to avoid conflict with the onboard OLED
+which occupies the HSPI hardware pins GPIO12 (MISO) and GPIO14 (SCK).
 
-- HSPI SCK: GPIO14
-- HSPI MISO: GPIO12
-- HSPI MOSI: GPIO13
-- MFRC522 SDA/SS (chip select): GPIO16 (software-controlled CS)
-- MFRC522 RST: GPIO2
+- SW-SPI SCK:  GPIO5  (D1)
+- SW-SPI MISO: GPIO4  (D2)
+- SW-SPI MOSI: GPIO13 (D7)
+- MFRC522 SDA/SS (chip select): GPIO16 (D0)
+- MFRC522 RST: GPIO2 (D4)
 - Power: 3.3V, GND common
 
 Notes:
 
-- ESP8266 HSPI data pins are hardware-fixed for SDK SPI driver use.
-- On this board profile, onboard OLED is currently assumed on I2C GPIO12/GPIO14.
-- Because of that overlap, external MFRC522 wiring may conflict electrically with onboard OLED lines. If this happens, use a board/pin arrangement that separates OLED and HSPI signals.
+- Hardware HSPI (GPIO12/GPIO13/GPIO14) is no longer used by MFRC522.
+- GPIO12 and GPIO14 are exclusively owned by the onboard OLED I2C bus.
 
 ## Power notes
 

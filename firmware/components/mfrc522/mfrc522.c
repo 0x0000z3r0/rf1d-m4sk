@@ -5,21 +5,21 @@
 #include <string.h>
 
 #include "driver/gpio.h"
-#include "driver/spi.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 static const char *TAG = "mfrc522";
 
-// ESP8266 HSPI pins are fixed by hardware: SCK=GPIO14, MISO=GPIO12,
-// MOSI=GPIO13. We use software CS so the chip-select can live on a safer GPIO.
-#define MFRC522_PIN_SS 16
-#define MFRC522_PIN_RST 2
+// Software SPI on conflict-free GPIOs (HSPI GPIO12/GPIO14 are shared with
+// onboard OLED).
+#define MFRC522_PIN_SCK 5   // D1
+#define MFRC522_PIN_MISO 4  // D2
+#define MFRC522_PIN_MOSI 13 // D7
+#define MFRC522_PIN_SS 16   // D0 (chip select)
+#define MFRC522_PIN_RST 2   // D4
 
 #define MFRC522_MAX_UID_LEN 10
-
-#define MFRC522_HOST HSPI_HOST
 
 #define PCD_IDLE 0x00
 #define PCD_TRANSCEIVE 0x0C
@@ -59,21 +59,14 @@ static inline void mfrc522_cs_low(void) { gpio_set_level(MFRC522_PIN_SS, 0); }
 static inline void mfrc522_cs_high(void) { gpio_set_level(MFRC522_PIN_SS, 1); }
 
 static uint8_t mfrc522_spi_xfer_byte(uint8_t tx) {
-  uint32_t tx_word = ((uint32_t)tx) << 24;
-  uint32_t rx_word = 0;
-
-  spi_trans_t trans;
-  memset(&trans, 0, sizeof(trans));
-  trans.mosi = &tx_word;
-  trans.miso = &rx_word;
-  trans.bits.mosi = 8;
-  trans.bits.miso = 8;
-
-  if (spi_trans(MFRC522_HOST, &trans) != ESP_OK) {
-    return 0;
+  uint8_t rx = 0;
+  for (int i = 7; i >= 0; --i) {
+    gpio_set_level(MFRC522_PIN_MOSI, (tx >> i) & 1);
+    gpio_set_level(MFRC522_PIN_SCK, 1);
+    rx = (uint8_t)((rx << 1) | gpio_get_level(MFRC522_PIN_MISO));
+    gpio_set_level(MFRC522_PIN_SCK, 0);
   }
-
-  return (uint8_t)(rx_word >> 24);
+  return rx;
 }
 
 static void mfrc522_write_reg(uint8_t reg, uint8_t value) {
@@ -231,32 +224,35 @@ static int mfrc522_anticoll(uint8_t *ser_num) {
 }
 
 esp_err_t mfrc522_init(void) {
-  spi_config_t spi_config;
-  memset(&spi_config, 0, sizeof(spi_config));
-  spi_config.interface.val = SPI_DEFAULT_INTERFACE;
-  spi_config.interface.cs_en = 0; // We drive CS manually on GPIO16.
-  spi_config.intr_enable.val = SPI_MASTER_DEFAULT_INTR_ENABLE;
-  spi_config.mode = SPI_MASTER_MODE;
-  spi_config.clk_div = SPI_4MHz_DIV;
-  spi_config.event_cb = NULL;
-
-  if (spi_init(MFRC522_HOST, &spi_config) != ESP_OK) {
-    ESP_LOGE(TAG, "spi_init failed");
-    return ESP_FAIL;
-  }
-
+  // Configure output pins: SCK, MOSI, CS, RST
   gpio_config_t out_conf = {
       .intr_type = GPIO_INTR_DISABLE,
       .mode = GPIO_MODE_OUTPUT,
-      .pin_bit_mask = (1ULL << MFRC522_PIN_SS) | (1ULL << MFRC522_PIN_RST),
+      .pin_bit_mask = (1ULL << MFRC522_PIN_SCK) | (1ULL << MFRC522_PIN_MOSI) |
+                      (1ULL << MFRC522_PIN_SS) | (1ULL << MFRC522_PIN_RST),
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
       .pull_up_en = GPIO_PULLUP_DISABLE,
   };
-
   esp_err_t err = gpio_config(&out_conf);
   if (err != ESP_OK) {
     return err;
   }
+
+  // Configure input pin: MISO
+  gpio_config_t in_conf = {
+      .intr_type = GPIO_INTR_DISABLE,
+      .mode = GPIO_MODE_INPUT,
+      .pin_bit_mask = (1ULL << MFRC522_PIN_MISO),
+      .pull_down_en = GPIO_PULLDOWN_DISABLE,
+      .pull_up_en = GPIO_PULLUP_ENABLE,
+  };
+  err = gpio_config(&in_conf);
+  if (err != ESP_OK) {
+    return err;
+  }
+
+  gpio_set_level(MFRC522_PIN_SCK, 0);
+  gpio_set_level(MFRC522_PIN_MOSI, 0);
 
   gpio_set_level(MFRC522_PIN_SS, 1);
   gpio_set_level(MFRC522_PIN_RST, 1);
@@ -268,8 +264,9 @@ esp_err_t mfrc522_init(void) {
 
   s_initialized = true;
   ESP_LOGI(TAG,
-           "MFRC522 initialized (HSPI: SCK=14 MOSI=13 MISO=12 SS=%d RST=%d)",
-           MFRC522_PIN_SS, MFRC522_PIN_RST);
+           "MFRC522 initialized (SW-SPI: SCK=%d MOSI=%d MISO=%d SS=%d RST=%d)",
+           MFRC522_PIN_SCK, MFRC522_PIN_MOSI, MFRC522_PIN_MISO, MFRC522_PIN_SS,
+           MFRC522_PIN_RST);
 
   return ESP_OK;
 }
